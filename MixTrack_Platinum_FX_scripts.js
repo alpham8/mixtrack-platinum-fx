@@ -47,9 +47,9 @@ MixtrackPlatinumFX.fastSeekRate = 4;
 
 // Helper functions
 
-var sendSysex = function(buffer) {
+function sendSysex(buffer) {
     midi.sendSysexMsg(buffer, buffer.length);
-}
+};
 
 MixtrackPlatinumFX.encodeNumToArray = function(number, drop, unsigned) {
     var number_array = [
@@ -63,18 +63,21 @@ MixtrackPlatinumFX.encodeNumToArray = function(number, drop, unsigned) {
         number & 0x0F,
     ];
 
-    if (drop !== undefined) {
+    if (drop !== "undefined") {
         number_array.splice(0, drop);
     }
 
-    if (number < 0) number_array[0] = 0x07;
-    else if (!unsigned) number_array[0] = 0x08;
+    if (number < 0) {
+        number_array[0] = 0x07;
+    } else if (!unsigned) {
+        number_array[0] = 0x08;
+    }
 
     return number_array;
 };
 
 MixtrackPlatinumFX.sendScreenRateMidi = function(deck, rate) {
-    rateArray = MixtrackPlatinumFX.encodeNumToArray(rate, 2);
+    var rateArray = MixtrackPlatinumFX.encodeNumToArray(rate, 2);
 
     var bytePrefix = [0xF0, 0x00, 0x20, 0x7F, deck, 0x02];
     var bytePostfix = [0xF7];
@@ -92,7 +95,7 @@ MixtrackPlatinumFX.sendScreenTimeMidi = function(deck, time) {
 };
 
 MixtrackPlatinumFX.sendScreenBpmMidi = function(deck, bpm) {
-    bpmArray = MixtrackPlatinumFX.encodeNumToArray(bpm, 2, true);
+    var bpmArray = MixtrackPlatinumFX.encodeNumToArray(bpm, 2, true);
 
     var bytePrefix = [0xF0, 0x00, 0x20, 0x7F, deck, 0x01];
     var bytePostfix = [0xF7];
@@ -147,7 +150,7 @@ MixtrackPlatinumFX.positionCallback = function(position, group, control) {
     midi.sendShortMsg(0xB0 | channel, 0x3F, pos);
 
     // get the current duration
-    duration = engine.getValue(group, "duration");
+    var duration = engine.getValue(group, "duration");
     var timeElapsed = duration * position;
 
     // update the time display
@@ -172,14 +175,14 @@ MixtrackPlatinumFX.positionCallback = function(position, group, control) {
 MixtrackPlatinumFX.rateCallback = function(rate, group, control)  {
     var channel = MixtrackPlatinumFX.groupChannels[group];
     var rateEffective = engine.getValue(group, "rateRange") * rate;
-    MixtrackPlatinumFX.sendScreenRateMidi(channel+1, Math.round(rateEffective*10000));
+    MixtrackPlatinumFX.sendScreenRateMidi(channel+1, (rateEffective*10000).toFixed(1));
 };
 
 MixtrackPlatinumFX.cycleRateRange = function(channel, control, value, status, group) {
     var currRangeIdx = MixtrackPlatinumFX.deckRateRangeIdxs[channel];
     var newRangeIdx = (currRangeIdx + 1) % MixtrackPlatinumFX.rateRangeOptions.length;
     MixtrackPlatinumFX.deckRateRangeIdxs[channel] = newRangeIdx;
-    newRange = MixtrackPlatinumFX.rateRangeOptions[newRangeIdx];
+    var newRange = MixtrackPlatinumFX.rateRangeOptions[newRangeIdx];
     MixtrackPlatinumFX.updateRateRange(channel, newRange);
 };
 
@@ -219,7 +222,7 @@ MixtrackPlatinumFX.wheelStopCheck = function(deck) {
         MixtrackPlatinumFX.deckWheelStopTimers[deck] = 0;
         MixtrackPlatinumFX.deckFastSeekAccums[deck] = 0;
     }
-}
+};
 
 MixtrackPlatinumFX.touchWheel = function(channel, control, value, status, group) {
     if (value == 0x7f) {
@@ -263,7 +266,6 @@ MixtrackPlatinumFX.jog = function(channel, control, value, status, group) {
 
         var nudge = (amount < 0 ? -1 : 1) * gammaOutputRange * Math.pow(
             Math.abs(amount) / (gammaInputRange * maxOutFraction),
-            sensitivity
         );
 
         engine.setValue(group, "jog", nudge);
@@ -342,7 +344,7 @@ MixtrackPlatinumFX.getHotcueEnabledCallback = function(channel, pad) {
             midi.sendShortMsg(0x94+channel, 0x1C+pad, brightness);
         }
     };
-}
+};
 
 MixtrackPlatinumFX.makePadHotcueLEDConnections = function(channel) {
     var deckGroup = MixtrackPlatinumFX.deckGroups[channel];
@@ -367,11 +369,12 @@ MixtrackPlatinumFX.getLoopEnabledCallback = function(channel, pad) {
 
 MixtrackPlatinumFX.makePadAutoloopLEDConnections = function(channel) {
     var deckGroup = MixtrackPlatinumFX.deckGroups[channel];
+    var loopSize, loopEnabled, callbackEnabled, connectionEnabled;
     for (var pad = 0; pad < 8; ++pad) {
-        var loopSize = MixtrackPlatinumFX.autoloopSizes[pad];
-        var loopEnabled = 'beatloop_'+loopSize+'_enabled';
-        var callbackEnabled = MixtrackPlatinumFX.getLoopEnabledCallback(channel, pad);
-        var connectionEnabled = engine.makeConnection(deckGroup, loopEnabled, callbackEnabled);
+        loopSize = MixtrackPlatinumFX.autoloopSizes[pad];
+        loopEnabled = 'beatloop_'+loopSize+'_enabled';
+        callbackEnabled = MixtrackPlatinumFX.getLoopEnabledCallback(channel, pad);
+        connectionEnabled = engine.makeConnection(deckGroup, loopEnabled, callbackEnabled);
         MixtrackPlatinumFX.deckPadLEDConnections[channel][1].push(connectionEnabled);
     }
 };
@@ -387,16 +390,17 @@ MixtrackPlatinumFX.getBeatjumpCallback = function(channel, pad) {
 
 MixtrackPlatinumFX.makePadBeatjumpLEDConnections = function(channel) {
     var deckGroup = MixtrackPlatinumFX.deckGroups[channel];
+    var jumpSize, jumpControl, callback, connection;
     for (var pad = 0; pad < 16; ++pad) {
-        var jumpSize = pad < 8 ? MixtrackPlatinumFX.beatjumpSizes[pad] : MixtrackPlatinumFX.beatjumpSizesShift[pad-8];
-        var jumpControl = null;
+        jumpSize = pad < 8 ? MixtrackPlatinumFX.beatjumpSizes[pad] : MixtrackPlatinumFX.beatjumpSizesShift[pad-8];
+        jumpControl = null;
         if (jumpSize < 0) {
             jumpControl = 'beatjump_'+(-jumpSize)+'_backward';
         } else {
             jumpControl = 'beatjump_'+jumpSize+'_forward';
         }
-        var callback = MixtrackPlatinumFX.getBeatjumpCallback(channel, pad);
-        var connection = engine.makeConnection(deckGroup, jumpControl, callback);
+        callback = MixtrackPlatinumFX.getBeatjumpCallback(channel, pad);
+        connection = engine.makeConnection(deckGroup, jumpControl, callback);
         MixtrackPlatinumFX.deckPadLEDConnections[channel][2].push(connection);
     }
 };
@@ -423,14 +427,15 @@ MixtrackPlatinumFX.getSamplerLoadedCallback = function(channel, pad) {
 };
 
 MixtrackPlatinumFX.makePadSamplerLEDConnections = function(channel) {
+    var samplerGroup, callbackPlay, callbackLoaded, connectionPlay;
     for (var pad = 0; pad < 8; ++pad) {
-        var samplerGroup = '[Sampler'+(pad+1)+']';
-        var callbackPlay = MixtrackPlatinumFX.getSamplerPlayCallback(channel, pad);
-        var callbackLoaded = MixtrackPlatinumFX.getSamplerLoadedCallback(channel, pad);
-        var connectionPlay = engine.makeConnection(samplerGroup, 'play', callbackPlay);
+        samplerGroup = '[Sampler'+(pad+1)+']';
+        callbackPlay = MixtrackPlatinumFX.getSamplerPlayCallback(channel, pad);
+        callbackLoaded = MixtrackPlatinumFX.getSamplerLoadedCallback(channel, pad);
+        connectionPlay = engine.makeConnection(samplerGroup, 'play', callbackPlay);
         engine.makeConnection(samplerGroup, 'track_loaded', callbackLoaded);
         MixtrackPlatinumFX.deckPadLEDConnections[channel][3].push(connectionPlay);
-    };
+    }
 };
 
 
@@ -445,8 +450,9 @@ MixtrackPlatinumFX.updatePadModeLED = function(channel, padMode) {
 
 MixtrackPlatinumFX.blinkCallback = function() {
     MixtrackPlatinumFX.blinkState = 1 - MixtrackPlatinumFX.blinkState;
+    var altMode;
     for (var deck = 0; deck < 4; ++deck) {
-        var altMode = MixtrackPlatinumFX.altPadModes[MixtrackPlatinumFX.deckPadModes[deck]];
+        altMode = MixtrackPlatinumFX.altPadModes[MixtrackPlatinumFX.deckPadModes[deck]];
         if (altMode !== undefined) {
             var brightness = MixtrackPlatinumFX.blinkState*0x7d + 0x02;
             midi.sendShortMsg(0x94+deck, MixtrackPlatinumFX.padModeAddrs[altMode], brightness);
@@ -646,7 +652,7 @@ MixtrackPlatinumFX.updateFXButtonLED = function(button) {
         value = 0x01;
     }
     midi.sendShortMsg(status, button, value);
-}
+};
 
 MixtrackPlatinumFX.init = function(id, debug) {
 
@@ -670,9 +676,10 @@ MixtrackPlatinumFX.init = function(id, debug) {
     MixtrackPlatinumFX.activeFXSlot = 0;
     MixtrackPlatinumFX.fxModes = [-1, -1, -1, -1, -1, -1];
     MixtrackPlatinumFX.fxMetaTakeover = false;
+    var deckGroup, initPos, control, padMode;
 
     for (var deck = 0; deck < 4; ++deck) {
-        var deckGroup = MixtrackPlatinumFX.deckGroups[deck];
+        deckGroup = MixtrackPlatinumFX.deckGroups[deck];
         MixtrackPlatinumFX.groupChannels[deckGroup] = deck;
         for (var mode = 0; mode < 6; ++mode) {
             MixtrackPlatinumFX.deckPadLEDConnections[deck].push([]);
@@ -694,24 +701,24 @@ MixtrackPlatinumFX.init = function(id, debug) {
     midi.sendShortMsg(0x91, 0x08, 0x7f);
     
     for (var deck = 0; deck < 4; ++deck) {
-        var deckGroup = MixtrackPlatinumFX.deckGroups[deck];
+        deckGroup = MixtrackPlatinumFX.deckGroups[deck];
         engine.makeConnection(deckGroup, 'bpm', MixtrackPlatinumFX.bpmCallback).trigger();
         engine.makeConnection(deckGroup, 'playposition', MixtrackPlatinumFX.positionCallback);
         engine.makeConnection(deckGroup, 'rate', MixtrackPlatinumFX.rateCallback).trigger();
 
         engine.makeConnection(deckGroup, 'VuMeter', MixtrackPlatinumFX.vuCallback).trigger();
 
-        var initPos = engine.getValue(deckGroup, "track_loaded") ? engine.getValue(deckGroup, "playposition") : 0;
+        initPos = engine.getValue(deckGroup, "track_loaded") ? engine.getValue(deckGroup, "playposition") : 0;
         MixtrackPlatinumFX.positionCallback(initPos, deckGroup, "playposition");
 
-        for (var control in MixtrackPlatinumFX.genericLEDs) {
+        for (control in MixtrackPlatinumFX.genericLEDs) {
             engine.makeConnection(deckGroup, control, MixtrackPlatinumFX.genericLEDCallback).trigger();
         }
-        for (var control in MixtrackPlatinumFX.binaryLEDs) {
+        for (control in MixtrackPlatinumFX.binaryLEDs) {
             engine.makeConnection(deckGroup, control, MixtrackPlatinumFX.binaryLEDCallback).trigger();
         }
 
-        for (var padMode = 0; padMode < 6; ++padMode) {
+        for (padMode = 0; padMode < 6; ++padMode) {
             MixtrackPlatinumFX.updatePadModeLED(deck, padMode);
         }
 
